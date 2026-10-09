@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Key Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:       #0d1117;
+  --surface:  #161b22;
+  --border:   #30363d;
+  --text:     #e6edf3;
+  --muted:    #8b949e;
+  --accent:   #58a6ff;
+  --green:    #3fb950;
+  --yellow:   #d29922;
+  --orange:   #f0883e;
+  --red:      #f85149;
+  --purple:   #bc8cff;
+}
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; min-height: 100vh; }
+a { color: var(--accent); text-decoration: none; }
+
+/* Layout */
+.shell { display: flex; min-height: 100vh; }
+aside {
+  width: 220px; flex-shrink: 0; background: var(--surface);
+  border-right: 1px solid var(--border); padding: 24px 0;
+  display: flex; flex-direction: column; position: fixed; top: 0; bottom: 0; left: 0;
+}
+main { margin-left: 220px; padding: 32px; flex: 1; max-width: 1200px; }
+
+/* Sidebar */
+.brand { padding: 0 20px 24px; border-bottom: 1px solid var(--border); }
+.brand-icon { width: 36px; height: 36px; background: linear-gradient(135deg,#1f6feb,#58a6ff); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+.brand-icon svg { width: 20px; height: 20px; }
+.brand h1 { font-size: 14px; font-weight: 700; color: var(--text); }
+.brand p  { font-size: 11px; color: var(--muted); margin-top: 2px; }
+nav { padding: 16px 0; flex: 1; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 9px 20px;
+  cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 500;
+  border-left: 2px solid transparent; transition: all .15s;
+}
+.nav-item:hover { color: var(--text); background: rgba(255,255,255,.04); }
+.nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(88,166,255,.07); }
+.nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+/* Pages */
+.page { display: none; }
+.page.active { display: block; }
+
+/* Page header */
+.page-header { margin-bottom: 28px; }
+.page-header h2 { font-size: 20px; font-weight: 700; }
+.page-header p  { color: var(--muted); margin-top: 4px; font-size: 13px; }
+
+/* Stat cards */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 16px; margin-bottom: 28px; }
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 18px 20px;
+}
+.stat-card .label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+.stat-card .value { font-size: 28px; font-weight: 700; margin-top: 6px; }
+.stat-card .sub   { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.val-green  { color: var(--green); }
+.val-yellow { color: var(--yellow); }
+.val-orange { color: var(--orange); }
+.val-red    { color: var(--red); }
+.val-blue   { color: var(--accent); }
+
+/* Charts row */
+.charts { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
+.chart-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px;
+}
+.chart-card h3 { font-size: 13px; font-weight: 600; margin-bottom: 16px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.chart-wrap { position: relative; height: 200px; }
+
+/* Table */
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  overflow: hidden; margin-bottom: 20px;
+}
+.card-header {
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-header h3 { font-size: 14px; font-weight: 600; }
+table { width: 100%; border-collapse: collapse; }
+th { padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); border-bottom: 1px solid var(--border); }
+td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,.02); }
+.mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); }
+
+/* Badges */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600;
+}
+.badge-active   { background: rgba(63,185,80,.15);  color: var(--green); }
+.badge-revoked  { background: rgba(248,81,73,.15);  color: var(--red); }
+.badge-rotated  { background: rgba(188,140,255,.15);color: var(--purple); }
+.badge-expired  { background: rgba(240,136,62,.15); color: var(--orange); }
+.badge-CRITICAL { background: rgba(248,81,73,.15);  color: var(--red); }
+.badge-HIGH     { background: rgba(240,136,62,.15); color: var(--orange); }
+.badge-MEDIUM   { background: rgba(210,153,34,.15); color: var(--yellow); }
+.badge-LOW      { background: rgba(88,166,255,.15); color: var(--accent); }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 500;
+  cursor: pointer; border: none; transition: opacity .15s;
+}
+.btn:hover { opacity: .85; }
+.btn-primary  { background: var(--accent); color: #000; }
+.btn-danger   { background: rgba(248,81,73,.15); color: var(--red); border: 1px solid rgba(248,81,73,.3); }
+.btn-rotate   { background: rgba(188,140,255,.15); color: var(--purple); border: 1px solid rgba(188,140,255,.3); }
+.btn-export   { background: rgba(63,185,80,.1); color: var(--green); border: 1px solid rgba(63,185,80,.3); }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+
+/* Form */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+.form-group input, .form-group select, .form-group textarea {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text); padding: 9px 12px; font-size: 13px; font-family: inherit;
+  transition: border-color .15s; width: 100%;
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+  outline: none; border-color: var(--accent);
+}
+.form-group select option { background: var(--surface); }
+.form-full { grid-column: 1 / -1; }
+.form-actions { display: flex; justify-content: flex-end; margin-top: 8px; }
+
+/* Alert banner */
+.alert { border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; display: flex; align-items: flex-start; gap: 10px; }
+.alert-CRITICAL { background: rgba(248,81,73,.1);  border: 1px solid rgba(248,81,73,.3); color: var(--red); }
+.alert-HIGH     { background: rgba(240,136,62,.1); border: 1px solid rgba(240,136,62,.3); color: var(--orange); }
+.alert-MEDIUM   { background: rgba(210,153,34,.1); border: 1px solid rgba(210,153,34,.3); color: var(--yellow); }
+.alert-LOW      { background: rgba(88,166,255,.1); border: 1px solid rgba(88,166,255,.3); color: var(--accent); }
+.alert-title    { font-weight: 600; }
+.alert-desc     { color: var(--muted); margin-top: 2px; font-size: 12px; }
+
+/* Filters */
+.filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.filters select, .filters input { padding: 7px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; }
+
+/* Modal */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 100; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; padding: 28px; }
+.modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 20px; }
+.modal-close { float: right; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 20px; margin-top: -4px; }
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; font-size: 13px; z-index: 200; transform: translateY(80px); opacity: 0; transition: all .3s; }
+.toast.show { transform: translateY(0); opacity: 1; }
+.empty { text-align: center; padding: 48px; color: var(--muted); font-size: 13px; }
+
+@media (max-width: 768px) {
+  aside { display: none; }
+  main { margin-left: 0; padding: 16px; }
+  .charts { grid-template-columns: 1fr; }
+  .form-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<aside>
+  <div class="brand">
+    <div class="brand-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+    </div>
+    <h1>KMS</h1>
+    <p>Key Management System</p>
+  </div>
+  <nav>
+    <div class="nav-item active" onclick="showPage('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-item" onclick="showPage('keys')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+      Keys
+    </div>
+    <div class="nav-item" onclick="showPage('generate')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      Generate Key
+    </div>
+    <div class="nav-item" onclick="showPage('scan')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      Vulnerability Scan
+    </div>
+    <div class="nav-item" onclick="showPage('audit')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10,9 9,9 8,9"/></svg>
+      Audit Log
+    </div>
+  </nav>
+</aside>
+
+<main>
+
+<!-- DASHBOARD -->
+<div id="page-dashboard" class="page active">
+  <div class="page-header">
+    <h2>Dashboard</h2>
+    <p>Overview of your cryptographic key inventory and health</p>
+  </div>
+  <div class="stats" id="stats-row"></div>
+  <div class="charts">
+    <div class="chart-card">
+      <h3>Keys by Algorithm</h3>
+      <div class="chart-wrap"><canvas id="chart-algo"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Keys by Status</h3>
+      <div class="chart-wrap"><canvas id="chart-status"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><h3>Recent Keys</h3><button class="btn btn-primary" onclick="showPage('generate')">+ Generate Key</button></div>
+    <table><thead><tr><th>Name</th><th>Algorithm</th><th>Purpose</th><th>Status</th><th>Created</th><th>Expires</th></tr></thead>
+    <tbody id="recent-keys-body"></tbody></table>
+  </div>
+</div>
+
+<!-- KEYS -->
+<div id="page-keys" class="page">
+  <div class="page-header">
+    <h2>Key Inventory</h2>
+    <p>All cryptographic keys — filter, rotate, revoke and export</p>
+  </div>
+  <div class="filters">
+    <select id="filter-status" onchange="loadKeys()">
+      <option value="">All Statuses</option>
+      <option value="active">Active</option>
+      <option value="revoked">Revoked</option>
+      <option value="rotated">Rotated</option>
+    </select>
+    <select id="filter-algo" onchange="loadKeys()">
+      <option value="">All Algorithms</option>
+      <option value="RSA">RSA</option>
+      <option value="EC">EC</option>
+      <option value="AES">AES</option>
+      <option value="HMAC">HMAC</option>
+    </select>
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Name</th><th>Algorithm</th><th>Purpose</th><th>Status</th><th>Fingerprint</th><th>Expires</th><th>Actions</th></tr></thead>
+      <tbody id="keys-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- GENERATE -->
+<div id="page-generate" class="page">
+  <div class="page-header">
+    <h2>Generate Key</h2>
+    <p>Create a new cryptographic key using the Node.js crypto module</p>
+  </div>
+  <div class="card" style="padding:24px">
+    <form id="gen-form" onsubmit="generateKey(event)">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Key Name *</label>
+          <input type="text" id="g-name" placeholder="e.g. prod-signing-key-2026" required>
+        </div>
+        <div class="form-group">
+          <label>Algorithm *</label>
+          <select id="g-algo" onchange="updateAlgoOptions()" required>
+            <option value="">Select algorithm</option>
+            <option value="RSA">RSA — Asymmetric (signing / encryption)</option>
+            <option value="EC">EC — Elliptic Curve (signing / ECDH)</option>
+            <option value="AES">AES — Symmetric (encryption)</option>
+            <option value="HMAC">HMAC — Message authentication</option>
+          </select>
+        </div>
+        <div class="form-group" id="row-keysize" style="display:none">
+          <label>Key Size</label>
+          <select id="g-keysize"></select>
+        </div>
+        <div class="form-group" id="row-curve" style="display:none">
+          <label>Curve</label>
+          <select id="g-curve">
+            <option value="P-256">P-256 (recommended)</option>
+            <option value="P-384">P-384</option>
+            <option value="P-521">P-521</option>
+            <option value="P-192">P-192 (deprecated)</option>
+            <option value="secp256k1">secp256k1 (deprecated)</option>
+          </select>
+        </div>
+        <div class="form-group" id="row-hashalg" style="display:none">
+          <label>Hash Algorithm</label>
+          <select id="g-hashalg">
+            <option value="SHA-256">SHA-256 (recommended)</option>
+            <option value="SHA-384">SHA-384</option>
+            <option value="SHA-512">SHA-512</option>
+            <option value="SHA-1">SHA-1 (deprecated)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Purpose *</label>
+          <select id="g-purpose" required>
+            <option value="">Select purpose</option>
+            <option value="signing">Signing</option>
+            <option value="encryption">Encryption</option>
+            <option value="authentication">Authentication</option>
+            <option value="key-wrapping">Key Wrapping</option>
+            <option value="general">General</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Expires In (days)</label>
+          <input type="number" id="g-expires" placeholder="e.g. 365 (leave blank = no expiry)" min="1">
+        </div>
+        <div class="form-group form-full">
+          <label>Notes</label>
+          <textarea id="g-notes" rows="2" placeholder="Optional description or usage notes"></textarea>
+        </div>
+      </div>
+      <div class="form-actions" style="margin-top:20px">
+        <button type="submit" class="btn btn-primary" id="gen-btn">Generate Key</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- SCAN -->
+<div id="page-scan" class="page">
+  <div class="page-header">
+    <h2>Vulnerability Scan</h2>
+    <p>Automated detection of weak algorithms, expired keys and missing rotation schedules</p>
+  </div>
+  <div id="scan-summary" class="stats" style="margin-bottom:20px"></div>
+  <div id="scan-results"></div>
+</div>
+
+<!-- AUDIT -->
+<div id="page-audit" class="page">
+  <div class="page-header">
+    <h2>Audit Log</h2>
+    <p>Immutable record of all key operations — generation, rotation, revocation and exports</p>
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Time</th><th>Key</th><th>Action</th><th>Details</th><th>IP</th></tr></thead>
+      <tbody id="audit-body"></tbody>
+    </table>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- Public key export modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="document.getElementById('modal-overlay').classList.remove('open')">×</button>
+    <h3 id="modal-title">Public Key</h3>
+    <textarea id="modal-content" rows="12" style="width:100%;margin-top:12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:12px;font-family:'JetBrains Mono',monospace;font-size:11px;resize:vertical" readonly></textarea>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  $(`page-${name}`).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.textContent.trim().toLowerCase().replace(' ','').startsWith(name.replace('-',''))) n.classList.add('active');
+  });
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'keys')      loadKeys();
+  if (name === 'scan')      loadScan();
+  if (name === 'audit')     loadAudit();
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function toast(msg, isError = false) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.style.borderColor = isError ? 'var(--red)' : 'var(--green)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmtDate(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+}
+function fmtTime(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+}
+function statusBadge(s) {
+  return `<span class="badge badge-${s}">${s}</span>`;
+}
+function algoLabel(k) {
+  if (k.algorithm === 'RSA')  return `RSA-${k.key_size}`;
+  if (k.algorithm === 'AES')  return `AES-${k.key_size}`;
+  if (k.algorithm === 'EC')   return `EC/${k.curve}`;
+  if (k.algorithm === 'HMAC') {
+    const hash = k.notes?.split(' ')[0] || 'SHA-256';
+    return `HMAC-${hash.replace('SHA-','')}`;
+  }
+  return k.algorithm;
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+let algoChart, statusChart;
+async function loadDashboard() {
+  const [stats, keys] = await Promise.all([
+    fetch('/api/stats').then(r => r.json()),
+    fetch('/api/keys?status=active').then(r => r.json()),
+  ]);
+
+  const vuln = stats.vulnerabilities;
+  const risk = vuln.CRITICAL > 0 ? 'val-red' : vuln.HIGH > 0 ? 'val-orange' : vuln.MEDIUM > 0 ? 'val-yellow' : 'val-green';
+  const riskLabel = vuln.CRITICAL > 0 ? 'CRITICAL' : vuln.HIGH > 0 ? 'HIGH' : vuln.MEDIUM > 0 ? 'MEDIUM' : 'CLEAN';
+
+  $('stats-row').innerHTML = `
+    <div class="stat-card"><div class="label">Total Keys</div><div class="value val-blue">${stats.total}</div><div class="sub">all statuses</div></div>
+    <div class="stat-card"><div class="label">Active</div><div class="value val-green">${stats.by_status.active || 0}</div><div class="sub">in use</div></div>
+    <div class="stat-card"><div class="label">Expiring Soon</div><div class="value val-yellow">${stats.expiring_soon}</div><div class="sub">within 30 days</div></div>
+    <div class="stat-card"><div class="label">Expired</div><div class="value val-orange">${stats.expired}</div><div class="sub">require action</div></div>
+    <div class="stat-card"><div class="label">Risk Status</div><div class="value ${risk}" style="font-size:18px;margin-top:8px">${riskLabel}</div><div class="sub">${(vuln.CRITICAL||0)+(vuln.HIGH||0)+(vuln.MEDIUM||0)+(vuln.LOW||0)} findings</div></div>
+  `;
+
+  const algoColors = ['#58a6ff','#3fb950','#bc8cff','#f0883e'];
+  const statusColors = { active:'#3fb950', revoked:'#f85149', rotated:'#bc8cff', expired:'#f0883e' };
+
+  if (algoChart) algoChart.destroy();
+  algoChart = new Chart($('chart-algo'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(stats.by_algorithm),
+      datasets: [{ data: Object.values(stats.by_algorithm), backgroundColor: algoColors, borderWidth: 0 }]
+    },
+    options: { plugins: { legend: { labels: { color: '#8b949e', font: { size: 12 } } } }, cutout: '65%' }
+  });
+
+  if (statusChart) statusChart.destroy();
+  statusChart = new Chart($('chart-status'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(stats.by_status),
+      datasets: [{ data: Object.values(stats.by_status), backgroundColor: Object.keys(stats.by_status).map(s => statusColors[s] || '#8b949e'), borderWidth: 0 }]
+    },
+    options: { plugins: { legend: { labels: { color: '#8b949e', font: { size: 12 } } } }, cutout: '65%' }
+  });
+
+  const tbody = $('recent-keys-body');
+  tbody.innerHTML = keys.slice(0, 8).map(k => `
+    <tr>
+      <td><strong>${k.name}</strong></td>
+      <td><span class="mono">${algoLabel(k)}</span></td>
+      <td>${k.purpose}</td>
+      <td>${statusBadge(k.status)}</td>
+      <td class="mono">${fmtDate(k.created_at)}</td>
+      <td>${k.expires_at ? `<span style="color:${k.expires_at < Date.now() ? 'var(--red)' : k.expires_at < Date.now()+30*86400000 ? 'var(--yellow)' : 'var(--muted)'}">${fmtDate(k.expires_at)}</span>` : '<span class="mono">—</span>'}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="6" class="empty">No keys yet — generate your first key</td></tr>';
+}
+
+// ── Keys ──────────────────────────────────────────────────────────────────────
+async function loadKeys() {
+  const status = $('filter-status')?.value || '';
+  const algo   = $('filter-algo')?.value   || '';
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (algo)   params.set('algorithm', algo);
+  const keys = await fetch('/api/keys?' + params).then(r => r.json());
+
+  $('keys-body').innerHTML = keys.map(k => `
+    <tr>
+      <td><strong>${k.name}</strong>${k.rotated_from ? '<br><span class="mono" style="font-size:10px;color:var(--purple)">rotated</span>' : ''}</td>
+      <td><span class="mono">${algoLabel(k)}</span></td>
+      <td>${k.purpose}</td>
+      <td>${statusBadge(k.status)}</td>
+      <td><span class="mono" title="${k.fingerprint}">${k.fingerprint.slice(0,12)}…</span></td>
+      <td>${k.expires_at ? `<span style="color:${k.expires_at < Date.now() ? 'var(--red)' : k.expires_at < Date.now()+30*86400000 ? 'var(--yellow)' : 'var(--muted)'}">${fmtDate(k.expires_at)}</span>` : '<span class="mono">—</span>'}</td>
+      <td style="white-space:nowrap">
+        ${k.status === 'active' ? `<button class="btn btn-rotate btn-sm" onclick="rotateKey('${k.id}','${k.name}')">Rotate</button> ` : ''}
+        ${k.status === 'active' ? `<button class="btn btn-danger btn-sm" onclick="revokeKey('${k.id}','${k.name}')">Revoke</button> ` : ''}
+        ${k.public_key ? `<button class="btn btn-export btn-sm" onclick="exportKey('${k.id}','${k.name}')">Export</button>` : ''}
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="7" class="empty">No keys found</td></tr>';
+}
+
+async function revokeKey(id, name) {
+  if (!confirm(`Revoke key "${name}"? This cannot be undone.`)) return;
+  const r = await fetch(`/api/keys/${id}/revoke`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+  if (r.ok) { toast(`Key "${name}" revoked`); loadKeys(); }
+  else toast((await r.json()).error, true);
+}
+
+async function rotateKey(id, name) {
+  if (!confirm(`Rotate key "${name}"? A new key will be generated and the old one marked as rotated.`)) return;
+  const r = await fetch(`/api/keys/${id}/rotate`, { method: 'POST' });
+  if (r.ok) { toast(`Key "${name}" rotated — new key created`); loadKeys(); }
+  else toast((await r.json()).error, true);
+}
+
+async function exportKey(id, name) {
+  const text = await fetch(`/api/keys/${id}/export`).then(r => r.text());
+  $('modal-title').textContent = `Public Key — ${name}`;
+  $('modal-content').value = text;
+  $('modal-overlay').classList.add('open');
+}
+
+function closeModal(e) {
+  if (e.target === $('modal-overlay')) $('modal-overlay').classList.remove('open');
+}
+
+// ── Generate ──────────────────────────────────────────────────────────────────
+function updateAlgoOptions() {
+  const algo = $('g-algo').value;
+  $('row-keysize').style.display  = (algo === 'RSA' || algo === 'AES') ? '' : 'none';
+  $('row-curve').style.display    = algo === 'EC'   ? '' : 'none';
+  $('row-hashalg').style.display  = algo === 'HMAC' ? '' : 'none';
+
+  const ks = $('g-keysize');
+  ks.innerHTML = '';
+  if (algo === 'RSA') {
+    [['1024','1024 (deprecated)'],['2048','2048 (minimum)'],['4096','4096 (recommended)']].forEach(([v,l]) => {
+      const o = document.createElement('option'); o.value = v; o.textContent = l; ks.appendChild(o);
+    });
+    ks.value = '4096';
+  } else if (algo === 'AES') {
+    [['64','64 (weak)'],['128','128'],['192','192'],['256','256 (recommended)']].forEach(([v,l]) => {
+      const o = document.createElement('option'); o.value = v; o.textContent = l; ks.appendChild(o);
+    });
+    ks.value = '256';
+  }
+}
+
+async function generateKey(e) {
+  e.preventDefault();
+  const btn = $('gen-btn');
+  btn.textContent = 'Generating…'; btn.disabled = true;
+
+  const algo = $('g-algo').value;
+  const body = {
+    name:         $('g-name').value,
+    algorithm:    algo,
+    purpose:      $('g-purpose').value,
+    notes:        $('g-notes').value || undefined,
+    expires_in_days: $('g-expires').value ? parseInt($('g-expires').value) : undefined,
+  };
+  if (algo === 'RSA' || algo === 'AES') body.key_size = parseInt($('g-keysize').value);
+  if (algo === 'EC')                    body.curve    = $('g-curve').value;
+  if (algo === 'HMAC')                  body.hash_alg = $('g-hashalg').value;
+
+  const r = await fetch('/api/keys/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  btn.textContent = 'Generate Key'; btn.disabled = false;
+
+  if (r.ok) {
+    const key = await r.json();
+    toast(`Key "${key.name}" generated`);
+    e.target.reset(); updateAlgoOptions();
+    showPage('keys');
+  } else {
+    toast((await r.json()).error, true);
+  }
+}
+
+// ── Scan ──────────────────────────────────────────────────────────────────────
+async function loadScan() {
+  const data = await fetch('/api/scan').then(r => r.json());
+  const { findings, summary } = data;
+
+  $('scan-summary').innerHTML = `
+    <div class="stat-card"><div class="label">Critical</div><div class="value val-red">${summary.CRITICAL||0}</div></div>
+    <div class="stat-card"><div class="label">High</div><div class="value val-orange">${summary.HIGH||0}</div></div>
+    <div class="stat-card"><div class="label">Medium</div><div class="value val-yellow">${summary.MEDIUM||0}</div></div>
+    <div class="stat-card"><div class="label">Low</div><div class="value val-blue">${summary.LOW||0}</div></div>
+  `;
+
+  const container = $('scan-results');
+  if (!findings.length) {
+    container.innerHTML = '<div class="card" style="padding:48px;text-align:center;color:var(--green)"><strong>No vulnerabilities detected</strong><p style="color:var(--muted);margin-top:8px;font-size:13px">All keys passed security checks</p></div>';
+    return;
+  }
+  const order = ['CRITICAL','HIGH','MEDIUM','LOW'];
+  const sorted = [...findings].sort((a,b) => order.indexOf(a.severity) - order.indexOf(b.severity));
+  container.innerHTML = sorted.map(f => `
+    <div class="alert alert-${f.severity}">
+      <span class="badge badge-${f.severity}" style="flex-shrink:0">${f.severity}</span>
+      <div>
+        <div class="alert-title">${f.title} — <em>${f.key_name}</em></div>
+        <div class="alert-desc">${f.description}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Audit ─────────────────────────────────────────────────────────────────────
+const actionColors = { generated:'var(--green)', revoked:'var(--red)', 'rotated-out':'var(--purple)', 'rotated-in':'var(--purple)', exported:'var(--accent)', viewed:'var(--muted)' };
+
+async function loadAudit() {
+  const logs = await fetch('/api/audit').then(r => r.json());
+  $('audit-body').innerHTML = logs.map(l => `
+    <tr>
+      <td class="mono">${fmtTime(l.ts)}</td>
+      <td>${l.key_name ? `<strong>${l.key_name}</strong><br><span class="mono" style="font-size:10px">${l.algorithm||''}</span>` : '<span class="mono" style="color:var(--muted)">—</span>'}</td>
+      <td><span style="color:${actionColors[l.action]||'var(--text)'};font-weight:600">${l.action}</span></td>
+      <td class="mono">${l.details ? JSON.stringify(JSON.parse(l.details), null, 0).slice(0,80) : '—'}</td>
+      <td class="mono">${l.ip || '—'}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="5" class="empty">No audit entries yet</td></tr>';
+}
+
+// Init
+loadDashboard();
+</script>
+</body>
+</html>
